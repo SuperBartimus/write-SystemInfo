@@ -17,6 +17,8 @@
 .License: CC0
 #>
 
+# Param( [string]$computer = “localhost” ) # for future use
+
 $WinFormDLL = $($env:WinDir) + '\Microsoft.NET\Framework64\v4.0.30319\System.Windows.Forms.dll'
 Add-Type -Path $WinFormDLL -ErrorAction SilentlyContinue # Required for to get cursor position
 
@@ -105,29 +107,63 @@ $Mdl = $Mdl.Replace("20L6S1E700", "$Mdl (aka= T480)")
 $Mdl = $Mdl.Replace("20L6S0XV00", "$Mdl (aka= T480)")
 $Mdl = $Mdl.Replace("20NX002XUS", "$Mdl (aka= T490)")
 $Mdl = $Mdl.Replace("20NKS3BS00", "$Mdl (aka= T495)")
-$ComputerSystem = $Mke + "`t" + $Mdl
-Write-Host "$ComputerSystem" -ForegroundColor Cyan
+$ComputerSystem = $Mke + " " + $Mdl
+Write-Host "$ComputerSystem" -ForegroundColor Cyan -NoNewline
+$computerBIOS = Get-CimInstance CIM_BIOSElement
+Write-Host "`tS/N: " -NoNewline -ForegroundColor Red
+$computerBIOS.SerialNumber
+Start-Sleep -Milliseconds $Delay; $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
+Switch ($((Get-WmiObject -Class win32_systemenclosure).chassistypes)) {
+    1 { $DevType = "Other" }
+    2 { $DevType = "Unknown" }
+    3 { $DevType = "Desktop" }
+    4 { $DevType = "Low-profile desktop" }
+    5 { $DevType = "Pizza box" }
+    6 { $DevType = "Mini tower" }
+    7 { $DevType = "Tower" }
+    8 { $DevType = "Portable" }
+    9 { $DevType = "Laptop" }
+    10 { $DevType = "Notebook" }
+    11 { $DevType = "Hand-held" }
+    12 { $DevType = "Docking station" }
+    13 { $DevType = "All-in-one" }
+    14 { $DevType = "Subnotebook" }
+    15 { $DevType = "Space-saving" }
+    16 { $DevType = "Lunch box" }
+    17 { $DevType = "Main system chassis" }
+    18 { $DevType = "Expansion chassis" }
+    19 { $DevType = "Subchassis" }
+    20 { $DevType = "Bus-expansion chassis" }
+    21 { $DevType = "Peripheral chassis" }
+    22 { $DevType = "Storage chassis" }
+    23 { $DevType = "Rack-mount chassis" }
+    24 { $DevType = "Sealed-case computer" }
+}
+Write-Host "`tDevice Type: " -NoNewline -ForegroundColor Red
+Write-Host "$DevType" -ForegroundColor Cyan -NoNewline
+
+
 #EndRegion Retrieve device Make/Model
 
 #Region Retrieve Processor Information
-Get-CimInstance -ClassName Win32_Processor | ForEach-Object {
+$CPUInfo = Get-CimInstance -ClassName Win32_Processor | ForEach-Object {
     $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
     Write-Host "$($_.DeviceID) : " -NoNewline -ForegroundColor Red
     Write-Host "$($_.Name)  " -ForegroundColor Cyan -NoNewline
     $CPU_Info = " [" + $_.NumberOfCores + " cores / " + $_.NumberOfLogicalProcessors + " threads]"
     Write-Host "$CPU_Info" -ForegroundColor Blue -NoNewline
-    Write-Host " ( $($_.MaxClockSpeed)GHz )" -ForegroundColor DarkGray
+    Write-Host " ( MaxClock: $($_.MaxClockSpeed)MHz )" -ForegroundColor DarkGray
 }
 #EndRegion Retrieve Processor Information
 
 #Region Retrieve CPU Usage
 Start-Sleep -Milliseconds $Delay; $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
-Write-Host "Processes: " -NoNewline -ForegroundColor Red
+Write-Host "`tProcesses: " -NoNewline -ForegroundColor Red
 $NumberOfProcesses = (Get-Process).Count
 Write-Host "$NumberOfProcesses" -ForegroundColor Cyan -NoNewline
 Write-Host "     Current CPU Load: " -NoNewline -ForegroundColor Red
-$Current_Load = $Processor.LoadPercentage
-Write-Host "$Current_Load%" -ForegroundColor Cyan
+$Current_Load = Get-CimInstance -ClassName Win32_Processor | Select-Object -ExpandProperty LoadPercentage | Measure-Object -Average
+Write-Host "$($Current_Load.average)%" -ForegroundColor Cyan
 #EndRegion Retrieve CPU Usage
 
 #Region Retrieve Memory Information
@@ -136,6 +172,17 @@ Write-Host "Memory: " -NoNewline -ForegroundColor Red
 $Memory_Size = Get-CimInstance Win32_OperatingSystem | Select-Object FreePhysicalMemory, TotalVisibleMemorySize # output in KB
 $Memory_Size = "$([math]::Round($Memory_Size.FreePhysicalMemory / 1KB)) MBs free of $([math]::Round($Memory_Size.TotalVisibleMemorySize / 1KB)) MBs Total"
 Write-Host "$Memory_Size" -ForegroundColor Cyan
+Get-WmiObject CIM_PhysicalMemory  | ForEach-Object {
+    $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
+    Write-Host "`t$($_.DeviceLocator) : " -NoNewline -ForegroundColor Red
+    Write-Host "$($_.Manufacturer) " -ForegroundColor Gray -NoNewline
+    Write-Host "$($_.PartNumber) " -ForegroundColor Gray -NoNewline
+    # Write-Host "$($_.SerialNumber) " -ForegroundColor DarkGray -NoNewline
+    Write-Host "$([math]::Round($_.Capacity / 1GB))GBs " -ForegroundColor Cyan -NoNewline
+    Write-Host "$($_.Speed)MHz " -ForegroundColor Cyan -NoNewline
+    # Write-Host "$($_.ConfiguredClockSpeed)MHz " -ForegroundColor DarkGray -NoNewline
+    Write-Host "$([math]::Round($_.ConfiguredVoltage / 100, 1))v " -ForegroundColor Cyan -NoNewline
+}
 #EndRegion Retrieve Memory Information
 
 #Region Retrieve device's name
@@ -210,12 +257,25 @@ Write-Host "$($Location.city), $($Location.regionName)  ($($Location.lat) / $($L
 Write-Host " ]" -ForegroundColor Blue
 #EndRegion Retrieve External IP Address and Geolocation
 
-#Region Retrieve Drive Information
+#Region Retrieve Physical Drive Information
+Get-PhysicalDisk | Select-Object * | ForEach-Object {
+    Start-Sleep -Milliseconds $Delay; $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
+    Write-Host "Drive $($_.DeviceID): " -NoNewline -ForegroundColor Red
+    Write-Host "$($_.Model)" -ForegroundColor Cyan -NoNewline
+    Write-Host "`t[ " -ForegroundColor Blue -NoNewline
+    Write-Host "Size: $([math]::round($_.Size / 1GB, 1))GBs " -ForegroundColor Gray -NoNewline
+    Write-Host " / Type: $($_.BusType) - $($_.MediaType)" -ForegroundColor Blue -NoNewline
+    Write-Host " / Status: $($_.HealthStatus)" -ForegroundColor Gray -NoNewline
+    Write-Host "] " -ForegroundColor Blue
+}
+#EndRegion Retrieve Physical Drive Information
+
+#Region Retrieve Partition Information
 $SystemDrive = (Get-WmiObject win32_operatingsystem).systemdrive
 [System.IO.DriveInfo]::getdrives() | Where-Object { $_.DriveType -ne 'Network' } | ForEach-Object {
     $Drive_Info = $_.DriveFormat + " / " + $_.DriveType + " / Lbl: """ + $_.VolumeLabel + """ / " + [math]::round($_.AvailableFreeSpace / 1GB, 1) + "GBs Free / " + [math]::round($_.TotalSize / 1GB, 1) + "GBs Total ]"
     Start-Sleep -Milliseconds $Delay; $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
-    Write-Host "Drive: " -NoNewline -ForegroundColor Red
+    Write-Host "Partition: " -NoNewline -ForegroundColor Red
     Write-Host "$($_.Name)" -ForegroundColor Cyan -NoNewline
     Write-Host " [ " -NoNewline -ForegroundColor Blue
     If ($_.Name -like "*$SystemDrive*") {
