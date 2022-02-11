@@ -20,14 +20,13 @@
 $WinFormDLL = $($env:WinDir) + '\Microsoft.NET\Framework64\v4.0.30319\System.Windows.Forms.dll'
 Add-Type -Path $WinFormDLL -ErrorAction SilentlyContinue # Required for to get cursor position
 
-#Region Generate Windows Flag
-
+#Region Generate MS Windows Flag
 Write-Host ""
-# Save the current positions. If StayOnSameLine switch is supplied, we should go back to these.
+# Save the current positions.
 $x = [System.Console]::get_CursorLeft()
 $y = [System.Console]::get_CursorTop()
-$CurrForegroundColor = [System.Console]::ForegroundColor
-$CurrBackgroundColor = [System.Console]::BackgroundColor
+# $CurrForegroundColor = [System.Console]::ForegroundColor
+# $CurrBackgroundColor = [System.Console]::BackgroundColor
 
 Write-Host ""
 Write-Host " ,.=:^!^!t3Z3z., " -ForegroundColor Red
@@ -82,16 +81,17 @@ Write-Host ""
 
 Write-Host "                 'VEzjt:;;z>*`` " -ForegroundColor Yellow
 Write-Host ""
+
+# Collect the current positions of the end of the Flag
 $x_end = [System.Console]::get_CursorLeft()
 $y_end = [System.Console]::get_CursorTop()
-
 #EndRegion Generate Windows Flag
 
 
 #Region Retrieve information:
-$Delay = 1
-$x = 33
-$y += 0
+$Delay = 1 # Delay between each element written to the console (in milliseconds)
+$x = 33 # X position of the cursor (in characters).  Used to position the cursor after right edge of the flag
+$y += 0 # like above, but for Y position. Really not needed, but I like to keep it in case I need it later.
 
 #Region Retrieve device Make/Model
 Start-Sleep -Milliseconds $Delay; $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
@@ -279,7 +279,7 @@ Write-Host "$Uptime" -ForegroundColor Cyan
 
 #EndRegion Retrieve information:
 
-#Region Return cursor to bottom of MS Flag or end of information list, whichever is greater
+#Region Return cursor to bottom of MSWin Flag or end of information list, whichever is greater
 $x += 0 ; $y += 1
 If ($y -gt $y_end) { $y_end = $y }
 Start-Sleep -Milliseconds $Delay; $x = $x_end ; $y = $y_end; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y }
