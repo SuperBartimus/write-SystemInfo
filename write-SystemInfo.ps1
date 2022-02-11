@@ -213,7 +213,7 @@ Get-WmiObject Win32_VideoController | Select-Object DeviceID, Description, Adapt
 
 #Region Retrieve Monitor Information
 function Decode { If ($args[0] -is [System.Array]) { [System.Text.Encoding]::ASCII.GetString($args[0]) }Else { "Not Found" } }
-
+$MonNum = 0
 ForEach ($Monitor in Get-WmiObject WmiMonitorID -Namespace root\wmi) {
     $Manufacturer = Decode $Monitor.ManufacturerName -notmatch 0
     $Name = Decode $Monitor.UserFriendlyName -notmatch 0
@@ -221,7 +221,8 @@ ForEach ($Monitor in Get-WmiObject WmiMonitorID -Namespace root\wmi) {
     # $ManufactureWeek = (Get-WmiObject WmiMonitorID -Namespace root\wmi).WeekofManufacture
     # $ManufactureYear = (Get-WmiObject WmiMonitorID -Namespace root\wmi).YearOfManufacture
     Start-Sleep -Milliseconds $Delay; $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
-    Write-Host "Monitor: " -NoNewline -ForegroundColor Red
+    $MonNum += 1
+    Write-Host "Monitor$($MonNum): " -NoNewline -ForegroundColor Red
     Write-Host "$Manufacturer`t$Name " -ForegroundColor Cyan -NoNewline
     Write-Host "`t[ S/N: $Serial ]" -ForegroundColor Blue
 }
@@ -264,26 +265,52 @@ Get-PhysicalDisk | Select-Object * | ForEach-Object {
     Write-Host "$($_.Model)" -ForegroundColor Cyan -NoNewline
     Write-Host "`t[ " -ForegroundColor Blue -NoNewline
     Write-Host "Size: $([math]::round($_.Size / 1GB, 1))GBs " -ForegroundColor Gray -NoNewline
-    Write-Host " / Type: $($_.BusType) - $($_.MediaType)" -ForegroundColor Blue -NoNewline
-    Write-Host " / Status: $($_.HealthStatus)" -ForegroundColor Gray -NoNewline
+    Write-Host "  Type: $($_.BusType) - $($_.MediaType)" -ForegroundColor Blue -NoNewline
+    Write-Host "  Status: " -ForegroundColor Gray -NoNewline
+    if ($_.HealthStatus -ne "Healthy") {
+        Write-Host "$($_.HealthStatus)" -Back DarkRed -ForegroundColor Yellow -NoNewline
+    }
+    else {
+        Write-Host "$($_.HealthStatus)" -ForegroundColor Green -NoNewline
+    }
     Write-Host "] " -ForegroundColor Blue
+
+    #Region Get Disk Information
+    $SystemDrive = "$((Get-WmiObject win32_operatingsystem).systemdrive)"
+    $SystemDrive = ($SystemDrive.Replace(":", "")).Trim()
+    Get-Partition -DiskNumber $($_.DeviceID) | Select-Object *  | ForEach-Object {
+        Start-Sleep -Milliseconds $Delay; $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
+        Write-Host "   Partition $($_.PartitionNumber): " -NoNewline -ForegroundColor Red
+        Write-Host "`t[ " -ForegroundColor Blue -NoNewline
+        Write-Host "Size: $([math]::round($_.Size / 1GB, 1))GBs " -ForegroundColor Gray -NoNewline
+        Write-Host "] " -ForegroundColor Blue
+        $VolLtr = "$($_.DriveLetter)"
+        $VolLtr = $VolLtr.Trim()
+        If ($VolLtr -ne "") {
+            Get-Volume -DriveLetter $VolLtr | Select-Object * | ForEach-Object {
+                Start-Sleep -Milliseconds $Delay; $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
+                Write-Host "      Volume $($_.DriveLetter):\ " -NoNewline -ForegroundColor Red
+                Write-Host "`t[ " -ForegroundColor Blue -NoNewline
+                Write-Host "FS: $($_.FileSystem) " -ForegroundColor Gray -NoNewline
+                Write-Host " / " -ForegroundColor DarkBlue -NoNewline
+                Write-Host "Size: $([math]::round($_.Size / 1GB, 1))GBs " -ForegroundColor Gray -NoNewline
+                Write-Host " / " -ForegroundColor DarkBlue -NoNewline
+                Write-Host "Free: $([math]::round($_.SizeRemaining / 1GB, 1))GBs " -ForegroundColor Gray -NoNewline
+                if ($_.FileSystemLabel -ne "") {
+                    Write-Host " / " -ForegroundColor DarkBlue -NoNewline
+                    Write-Host "Lbl: $($_.FileSystemLabel) " -ForegroundColor Gray -NoNewline
+                }
+
+                If ($VolLtr -like "*$SystemDrive*") {
+                    Write-Host "(OS Drive) " -ForegroundColor Green -NoNewline
+                }
+                Write-Host "] " -ForegroundColor Blue
+            }
+        }
+    }
+    #EndRegion Get Disk Information
 }
 #EndRegion Retrieve Physical Drive Information
-
-#Region Retrieve Partition Information
-$SystemDrive = (Get-WmiObject win32_operatingsystem).systemdrive
-[System.IO.DriveInfo]::getdrives() | Where-Object { $_.DriveType -ne 'Network' } | ForEach-Object {
-    $Drive_Info = $_.DriveFormat + " / " + $_.DriveType + " / Lbl: """ + $_.VolumeLabel + """ / " + [math]::round($_.AvailableFreeSpace / 1GB, 1) + "GBs Free / " + [math]::round($_.TotalSize / 1GB, 1) + "GBs Total ]"
-    Start-Sleep -Milliseconds $Delay; $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPosition = @{ X = $x; Y = $y } ; Write-Host -Fore White "| " -NoNewline
-    Write-Host "Partition: " -NoNewline -ForegroundColor Red
-    Write-Host "$($_.Name)" -ForegroundColor Cyan -NoNewline
-    Write-Host " [ " -NoNewline -ForegroundColor Blue
-    If ($_.Name -like "*$SystemDrive*") {
-        Write-Host "(OS Drive) " -ForegroundColor Green -NoNewline
-    }
-    Write-Host "$Drive_Info" -ForegroundColor Blue
-}
-#EndRegion Retrieve Drive Information
 
 #Region Retrieve Power Information
 Get-CimInstance -ClassName Win32_Battery | ForEach-Object {
