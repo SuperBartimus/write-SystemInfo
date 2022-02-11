@@ -3,7 +3,7 @@
 .Author: Bart Strauss / https://github.com/SuperBartimus
 .Version: 1.0
 .DESCRIPTION  writes details of the current system to the console
-.LINK         https://github.com/SuperBartimus/Misc-PowerShell_Scripts
+.LINK         https://github.com/SuperBartimus/write-SystemInfo
 .EXAMPLE      write-SystemInfo.ps1
     Computer System: LENOVO      20L6S1E700 (aka= T480)
     CPU0 : Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz   [4 cores / 8 threads]
@@ -274,7 +274,9 @@ Start-Sleep -Milliseconds $Delay; $x += 0 ; $y += 1; $Host.UI.RawUI.CursorPositi
 Write-Host "Uptime: " -NoNewline -ForegroundColor Red
 $Uptime = New-TimeSpan -Start $((Get-CimInstance -ClassName win32_operatingsystem ).lastbootuptime) -End $(Get-Date)
 $Uptime = "$(($uptime).Days) days, $(($uptime).Hours) hours, $(($uptime).Minutes) minutes and $(($uptime).Seconds) seconds"
-Write-Host "$Uptime" -ForegroundColor Cyan
+Write-Host "$Uptime" -ForegroundColor Cyan -NoNewline
+$CI = Get-ComputerInfo
+Write-Host "`t$($CI.CsBootupState) " -ForegroundColor Gray -NoNewline
 #EndRegion Show Current System Uptime
 
 #EndRegion Retrieve information:
